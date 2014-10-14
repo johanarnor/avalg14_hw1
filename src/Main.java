@@ -1,7 +1,7 @@
-import java.io.BufferedReader;
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.InputStreamReader;
+import java.io.*;
+import java.util.ArrayList;
+import java.util.Hashtable;
+import java.util.Random;
 
 public class Main{
     /*
@@ -29,46 +29,71 @@ public class Main{
     03A89842DBC06968
     */
 
-    private static int INPUT_LENGTH = 4194304;
+    private static final int INPUT_LENGTH = 4194304;
+    private static int currentProgress = 0;
 
     public static void main(String[] args) throws Exception {
         long[] h = getH();
-        long[] hashTable = new long[INPUT_LENGTH];
+        Hashtable<Integer, ArrayList<Long>> hashTable = new Hashtable<Integer, ArrayList<Long>>();
+
 
         BufferedReader bf = new BufferedReader(new InputStreamReader(new FileInputStream(new File("input.txt"))));
         for (int i = 0; i < INPUT_LENGTH; i++) {
             long input = Long.parseLong(bf.readLine(), 16);
             int hash = hash(h, input);
-            hashTable[hash]++;
+            if (hashTable.get(hash) == null) {
+                hashTable.put(hash, new ArrayList<Long>());
+            }
+            hashTable.get(hash).add(input);
         }
+        bf.close();
 
-        print(hashTable);
+        // Generate new hashFunctions
+        Hashtable<Integer, long[]> hashFunctions = new Hashtable<Integer, long[]>();
+        int counter = 0;
+        int keySetSize = hashTable.keySet().size();
+        for (int hash : hashTable.keySet()) {
+            counter++;
+            printProgress(counter, keySetSize);
+
+            ArrayList<Long> collisions = hashTable.get(hash);
+            if (collisions.size() > 2) {
+                double log2 = Math.log(collisions.size())/Math.log(2);
+                int numRows = (int) Math.ceil(log2);
+                long[] hashFunction;
+                int[] tempTable;
+
+                do {
+                    hashFunction = getRandomHashFunction(numRows);
+                    tempTable = new int[(int) Math.pow(2, numRows)];
+                    for (Long value : collisions) {
+                        int newHash = hash(hashFunction, value);
+                        tempTable[newHash]++;
+                    }
+                } while (!isPerfectHash(tempTable));
+
+                hashFunctions.put(hash, hashFunction);
+            }
+        }
+        printToFile(hashFunctions, hashTable);
     }
 
-    private static void print(long[] hashTable) {
-        int sum = 0;
-        int prints = 0;
-        int noZeros = 0;
-        int noOnes = 0;
-        for (int i = 0; i < hashTable.length; i++) {
-            if (hashTable[i] > 8) {
-//                System.out.println(i + "|" + hashTable[i]);
-                prints++;
+    private static boolean isPerfectHash(int[] tempTable) {
+        for (int i = 0; i < tempTable.length; i++) {
+            if (tempTable[i] > 1) {
+                return false;
             }
-            if (hashTable[i] == 0) {
-                noZeros++;
-            }
-            if (hashTable[i] == 1) {
-                noOnes++;
-            }
-
-            sum += hashTable[i];
         }
+        return true;
+    }
 
-        System.out.println("NO ZEROS = " + noZeros);
-        System.out.println("NO ONES = " + noOnes);
-        System.out.println("NO PRINTS = " + prints);
-        System.out.println("SUM = " + sum);
+    private static long[] getRandomHashFunction(int numRows) {
+        Random rand = new Random();
+        long[] hashFunction = new long[numRows];
+        for (int i = 0; i < hashFunction.length; i++) {
+            hashFunction[i] = rand.nextLong();
+        }
+        return hashFunction;
     }
 
     private static int hash(long[] h, long input) {
@@ -90,6 +115,33 @@ public class Main{
             h[i] = Long.parseLong(bf.readLine(), 16);
         }
 
+        bf.close();
         return h;
+    }
+
+    private static void printProgress(int counter, int keySetSize) {
+        double percent = (double) counter/keySetSize * 100;
+        int progress = (int) percent;
+        if (progress - 9 > currentProgress) {
+            System.out.println((int) percent + "% done...");
+            currentProgress = progress;
+        } else if (counter == 1) {
+            System.out.println("Started generating hash functions");
+        }
+    }
+
+    private static void printToFile(Hashtable<Integer, long[]> hashFunctions, Hashtable<Integer, ArrayList<Long>> hashTable) throws Exception {
+        BufferedWriter bw = new BufferedWriter(new OutputStreamWriter(new FileOutputStream(new File("output.txt"))));
+        for (int hash : hashFunctions.keySet()) {
+            long[] hashFunction = hashFunctions.get(hash);
+            bw.write(hash + " " + hashFunction.length);
+            bw.newLine();
+
+            for (long l : hashFunction) {
+                bw.write(Long.toHexString(l).toUpperCase());
+                bw.newLine();
+            }
+        }
+        bw.close();
     }
 }
