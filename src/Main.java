@@ -51,7 +51,7 @@ public class Main{
         int noZeros = 0;
         int noOnes = 0;
         for (int i = 0; i < hashTable.length; i++) {
-            if (hashTable[i] > 2) {
+            if (hashTable[i] > 8) {
 //                System.out.println(i + "|" + hashTable[i]);
                 prints++;
             }
@@ -75,9 +75,7 @@ public class Main{
         int hash = 0;
         for (int i = 0; i < h.length; i++) {
             long longHash = input & h[i];
-            int bitCount = Long.bitCount(longHash);
-            int mod2 = bitCount % 2;
-            hash = hash | mod2;
+            hash = hash | Long.bitCount(longHash) % 2;
             hash = hash << 1;
         }
         hash = hash >> 1;
